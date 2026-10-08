@@ -41,7 +41,12 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, database: mongoose.co
 app.get('/api/services', async (_req, res) => { try { const docs = mongoose.connection.readyState === 1 ? await Service.find().lean() : []; res.json(docs.length ? docs : services); } catch { res.json(services); } });
 app.post('/api/leads', async (req, res) => {
   const { name, email, phone = '', interest = 'General enquiry' } = req.body || {};
-  if (!name?.trim() || !/^\S+@\S+\.\S+$/.test(email || '')) return res.status(400).json({ message: 'Please enter your name and a valid email address.' });
+ // if (!name?.trim() || !/^\S+@\S+\.\S+$/.test(email || '')) return res.status(400).json({ message: 'Please enter your name and a valid email address.' });
+ if (!name?.trim() || !/^\S+@\S+\.\S+$/.test(email || '')) {
+  return res.status(400).json({
+    message: 'Please enter your name and a valid email address.'
+  });
+}
   const lead = { name: name.trim(), email: email.trim(), phone: String(phone).trim(), interest: String(interest).trim(), createdAt: new Date().toISOString() };
   try {
     if (mongoose.connection.readyState === 1) await Lead.create(lead);
@@ -69,7 +74,21 @@ app.post('/api/leads', async (req, res) => {
   }
 });
 
-if (process.env.MONGODB_URI) mongoose.connect(process.env.MONGODB_URI).then(async () => { if (!await Service.countDocuments()) await Service.insertMany(services); console.log('MongoDB connected'); }).catch(() => console.log('MongoDB unavailable — running in demo mode'));
+//if (process.env.MONGODB_URI) mongoose.connect(process.env.MONGODB_URI).then(async () => { if (!await Service.countDocuments()) await Service.insertMany(services); console.log('MongoDB connected'); }).catch(() => console.log('MongoDB unavailable — running in demo mode'));
+if (process.env.MONGODB_URI) {
+  mongoose.connect(process.env.MONGODB_URI)
+    .then(async () => {
+      if (!await Service.countDocuments()) {
+        await Service.insertMany(services);
+      }
 
+      console.log('MongoDB connected successfully');
+    })
+    .catch((error) => {
+      console.error('MongoDB connection error:', error.message);
+    });
+} else {
+  console.error('MONGODB_URI is missing from environment variables');
+}
 if (process.env.NODE_ENV === 'production') { app.use(express.static(path.join(root, 'dist'))); app.get('*', (_req, res) => res.sendFile(path.join(root, 'dist', 'index.html'))); }
 app.listen(port, () => console.log(`FlyPay API ready at http://localhost:${port}`));
