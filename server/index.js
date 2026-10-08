@@ -17,7 +17,10 @@ app.use(express.json());
 
 const Service = mongoose.model('Service', new mongoose.Schema({ title: String, detail: String, icon: String, tint: String, tag: String }));
 const Lead = mongoose.model('Lead', new mongoose.Schema({ name: { type: String, required: true }, email: { type: String, required: true }, phone: String, interest: String, createdAt: { type: Date, default: Date.now } }));
+
+
 const smtpReady = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.MAIL_TO);
+console.log('[DEBUG] SMTP configured:', smtpReady);
 const mailTransport = smtpReady ? nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT || 465),
@@ -40,9 +43,11 @@ const services = [
 app.get('/api/health', (_req, res) => res.json({ ok: true, database: mongoose.connection.readyState === 1 ? 'connected' : 'demo' }));
 app.get('/api/services', async (_req, res) => { try { const docs = mongoose.connection.readyState === 1 ? await Service.find().lean() : []; res.json(docs.length ? docs : services); } catch { res.json(services); } });
 app.post('/api/leads', async (req, res) => {
+  console.log('[DEBUG] Contact form request received');
+console.log('[DEBUG] SMTP transport available:', Boolean(mailTransport));
   const { name, email, phone = '', interest = 'General enquiry' } = req.body || {};
  // if (!name?.trim() || !/^\S+@\S+\.\S+$/.test(email || '')) return res.status(400).json({ message: 'Please enter your name and a valid email address.' });
- if (!name?.trim() || !/^\S+@\S+\.\S+$/.test(email || '')) {
+if (!name?.trim() || !/^\S+@\S+\.\S+$/.test(email || '')) {
   return res.status(400).json({
     message: 'Please enter your name and a valid email address.'
   });
